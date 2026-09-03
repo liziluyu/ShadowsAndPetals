@@ -5,13 +5,13 @@ import com.mojang.math.Axis;
 import com.sshakusora.shadowsandpetals.ShadowsAndPetals;
 import com.sshakusora.shadowsandpetals.block.decoration.CurtainBlock;
 import com.sshakusora.shadowsandpetals.blockentity.CurtainBlockEntity;
-import com.sshakusora.shadowsandpetals.registries.BlockRegistry;
 import com.sshakusora.shadowsandpetals.client.animation.AnimatedBlockModel;
 import com.sshakusora.shadowsandpetals.client.animation.AnimationControllerEvaluator;
 import com.sshakusora.shadowsandpetals.client.animation.AnimationResourceRef;
 import com.sshakusora.shadowsandpetals.client.animation.RigPose;
 import com.sshakusora.shadowsandpetals.client.model.BlockModelRegistry;
 import com.sshakusora.shadowsandpetals.client.model.registry.StandaloneBlockModelSet;
+import com.sshakusora.shadowsandpetals.registries.BlockRegistry;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.block.BlockAndTintGetter;
 import net.minecraft.client.renderer.block.dispatch.BlockStateModel;
@@ -24,8 +24,8 @@ import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.client.resources.model.geometry.BakedQuad;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.world.item.DyeColor;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
@@ -49,14 +49,14 @@ public class CurtainBlockEntityRenderer implements BlockEntityRenderer<CurtainBl
     /** Beyond this local time the clip has clamped to its final keyframe. */
     private static final float FALLBACK_END_POSE_SECONDS = 1.0F;
 
-    private static final AnimationResourceRef.Rig UPPER_R_RIG =
-            new AnimationResourceRef.Rig(ShadowsAndPetals.asResource("animation/curtain_upper_r"));
-    private static final AnimationResourceRef.Rig LOWER_R_RIG =
-            new AnimationResourceRef.Rig(ShadowsAndPetals.asResource("animation/curtain_lower_r"));
-    private static final AnimationResourceRef.Rig UPPER_L_RIG =
-            new AnimationResourceRef.Rig(ShadowsAndPetals.asResource("animation/curtain_upper_l"));
-    private static final AnimationResourceRef.Rig LOWER_L_RIG =
-            new AnimationResourceRef.Rig(ShadowsAndPetals.asResource("animation/curtain_lower_l"));
+    private static final AnimationResourceRef.Rig UPPER_RIGHT_RIG =
+            new AnimationResourceRef.Rig(ShadowsAndPetals.asResource("curtain/upper_right"));
+    private static final AnimationResourceRef.Rig LOWER_RIGHT_RIG =
+            new AnimationResourceRef.Rig(ShadowsAndPetals.asResource("curtain/lower_right"));
+    private static final AnimationResourceRef.Rig UPPER_LEFT_RIG =
+            new AnimationResourceRef.Rig(ShadowsAndPetals.asResource("curtain/upper_left"));
+    private static final AnimationResourceRef.Rig LOWER_LEFT_RIG =
+            new AnimationResourceRef.Rig(ShadowsAndPetals.asResource("curtain/lower_left"));
 
     private static final String[] UPPER_BONES = BlockModelRegistry.CURTAIN_UPPER_BONES;
     private static final String[] LOWER_BONES = BlockModelRegistry.CURTAIN_LOWER_BONES;
@@ -107,13 +107,13 @@ public class CurtainBlockEntityRenderer implements BlockEntityRenderer<CurtainBl
         BlockAndTintGetter tintGetter = (BlockAndTintGetter) blockEntity.getLevel();
         AnimationResourceRef.Rig rig;
         if (upper) {
-            rig = left ? UPPER_L_RIG : UPPER_R_RIG;
+            rig = left ? UPPER_LEFT_RIG : UPPER_RIGHT_RIG;
         } else {
-            rig = left ? LOWER_L_RIG : LOWER_R_RIG;
+            rig = left ? LOWER_LEFT_RIG : LOWER_RIGHT_RIG;
         }
         StandaloneBlockModelSet<BlockModelRegistry.CurtainBoneKey> modelSet = upper
-                ? (left ? BlockModelRegistry.CURTAIN_UPPER_L : BlockModelRegistry.CURTAIN_UPPER_R)
-                : (left ? BlockModelRegistry.CURTAIN_LOWER_L : BlockModelRegistry.CURTAIN_LOWER_R);
+                ? (left ? BlockModelRegistry.CURTAIN_UPPER_LEFT : BlockModelRegistry.CURTAIN_UPPER_RIGHT)
+                : (left ? BlockModelRegistry.CURTAIN_LOWER_LEFT : BlockModelRegistry.CURTAIN_LOWER_RIGHT);
         DyeColor color = dyeColorOf(blockEntity.getBlockState());
         AnimatedBlockModel model = resolveModel(
                 tintGetter, blockEntity, rig, upper ? UPPER_BONES : LOWER_BONES, modelSet,
@@ -134,7 +134,7 @@ public class CurtainBlockEntityRenderer implements BlockEntityRenderer<CurtainBl
         }
         state.animationPose = AnimationControllerEvaluator.sample(
                 rig.id(),
-                state.open ? "on" : "off",
+                state.open ? "open" : "closed",
                 seconds
         );
         state.model = model;

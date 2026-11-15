@@ -5,6 +5,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.color.item.ItemColors;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.block.model.BakedQuad;
+import net.minecraft.client.renderer.block.model.FaceBakery;
 import net.minecraft.client.renderer.block.model.ItemOverrides;
 import net.minecraft.client.renderer.entity.ItemRenderer;
 import net.minecraft.client.resources.model.BakedModel;
@@ -258,7 +259,13 @@ public final class BoxContentQuadCache {
             Direction direction = quad.getDirection() == null ? Direction.UP : quad.getDirection();
             BakedQuad copy = new BakedQuad(vertices, -1, direction, quad.getSprite(), false, false);
             transform.processInPlace(copy);
-            out.add(copy);
+
+            // Sodium derives boundary flags in the BakedQuad constructor. The item sprite's
+            // outer edges sit at 0/1 before the layer transform, but are interior faces once
+            // laid inside the box. Rebuild after transforming so those flags and the light
+            // direction describe the final geometry, rather than the original item plane.
+            out.add(new BakedQuad(vertices, -1, FaceBakery.calculateFacing(vertices),
+                    quad.getSprite(), false, false));
         }
     }
 

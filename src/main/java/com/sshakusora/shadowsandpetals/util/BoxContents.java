@@ -135,31 +135,39 @@ public final class BoxContents {
             return List.of();
         }
 
-        Predicate<Item> filter = contentFilter;
+        List<Item> items = taggedContentItems(contentFilter);
+        List<ItemStack> stacks = new ArrayList<>(items.size() + 1);
+        // The bare box is the empty box; keep it first in the tab.
+        stacks.add(new ItemStack(boxItem));
+        for (Item content : items) {
+            if (content != boxItem) {
+                stacks.add(createContentBox(boxItem, content, boxType));
+            }
+        }
+        return stacks;
+    }
+
+    /**
+     * Collects unique items from the currently bound runtime tags, sorted by item id. Unlike the
+     * datagen overload below, this sees tags contributed by every mod and datapack in the current
+     * instance. The caller supplies the filter because client model checks must not run on a server.
+     */
+    public static List<Item> taggedContentItems(Predicate<Item> filter) {
         Map<ResourceLocation, Item> sortedItems = new TreeMap<>();
         for (TagKey<Item> tag : CONTENT_TAGS) {
             for (Holder<Item> holder : BuiltInRegistries.ITEM.getTagOrEmpty(tag)) {
                 Item item = holder.value();
-                if (item == Items.AIR || item == boxItem) {
+                if (item == Items.AIR || !filter.test(item)) {
                     continue;
                 }
 
                 ResourceLocation id = BuiltInRegistries.ITEM.getKey(item);
-                if (id == null || sortedItems.containsKey(id) || !filter.test(item)) {
-                    continue;
+                if (id != null) {
+                    sortedItems.putIfAbsent(id, item);
                 }
-
-                sortedItems.put(id, item);
             }
         }
-
-        List<ItemStack> stacks = new ArrayList<>(sortedItems.size() + 1);
-        // The bare box is the empty box; keep it first in the tab.
-        stacks.add(new ItemStack(boxItem));
-        for (Map.Entry<ResourceLocation, Item> entry : sortedItems.entrySet()) {
-            stacks.add(createBoxStack(boxItem, entry.getKey(), boxType));
-        }
-        return stacks;
+        return List.copyOf(sortedItems.values());
     }
 
     /**

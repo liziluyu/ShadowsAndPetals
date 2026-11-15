@@ -1,7 +1,6 @@
 package com.sshakusora.shadowsandpetals.block.decoration;
 
 import com.mojang.serialization.MapCodec;
-import com.sshakusora.shadowsandpetals.data.BuiltinLanguageKeys;
 import com.sshakusora.shadowsandpetals.registries.BlockRegistry;
 import com.sshakusora.shadowsandpetals.util.WoolUtils;
 import net.minecraft.core.BlockPos;
@@ -11,6 +10,7 @@ import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.Entity;
@@ -35,13 +35,13 @@ import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.IdentityHashMap;
 import java.util.Map;
 
 public class CafeChairBlock extends AbstractSeatBlock {
     public static final MapCodec<CafeChairBlock> CODEC = simpleCodec(CafeChairBlock::new);
-    public static final String DYE_HINT_PREFIX_KEY = BuiltinLanguageKeys.CAFE_CHAIR_DYE_HINT_PREFIX.key();
     private static final double SEAT_HEIGHT = 0.625D;
     private static final VoxelShape SHAPE = Shapes.or(
             Block.box(7.0D, 0.0D, 7.0D, 9.0D, 7.0D, 9.0D),
@@ -53,6 +53,7 @@ public class CafeChairBlock extends AbstractSeatBlock {
             Block.box(3.0D, 7.25D, 3.0D, 13.0D, 9.25D, 13.0D),
             Block.box(3.5D, 9.25D, 3.5D, 12.5D, 10.25D, 12.5D)
     );
+    @Nullable
     private static Map<Block, DyeColor> colorByBlock;
 
     public CafeChairBlock(BlockBehaviour.Properties properties) {
@@ -75,27 +76,28 @@ public class CafeChairBlock extends AbstractSeatBlock {
     }
 
     @Override
-    public ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hitResult) {
-        if (stack.getItem() instanceof DyeItem dyeItem) {
-            BlockState dyedState = getDyedState(state, dyeItem.getDyeColor());
+    protected ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hitResult) {
+        if (stack.getItem() instanceof DyeItem) {
+            DyeColor dyeColor = DyeColor.getColor(stack);
+            if (dyeColor == null) {
+                return super.useItemOn(stack, state, level, pos, player, hand, hitResult);
+            }
+
+            BlockState dyedState = getDyedState(state, dyeColor);
             if (dyedState.getBlock() != state.getBlock()) {
-                if (!level.isClientSide) {
+                if (!level.isClientSide()) {
                     level.setBlock(pos, dyedState, Block.UPDATE_ALL);
                     level.playSound(null, pos, SoundEvents.DYE_USE, SoundSource.BLOCKS, 0.45F, 0.95F);
                     HumanoidArm brushArm = hand == InteractionHand.MAIN_HAND ? player.getMainArm() : player.getMainArm().getOpposite();
-                    spawnDyeParticles((ServerLevel) level, hitResult, player.getViewVector(0.0F), brushArm, getColor(state), dyeItem.getDyeColor());
-                    if (!player.getAbilities().instabuild) {
+                    spawnDyeParticles((ServerLevel) level, hitResult, player.getViewVector(0.0F), brushArm, getColor(state), dyeColor);
+                    if (!player.isCreative()) {
                         stack.shrink(1);
                     }
                 }
-                return ItemInteractionResult.sidedSuccess(level.isClientSide);
+                return ItemInteractionResult.SUCCESS;
             }
         }
         return super.useItemOn(stack, state, level, pos, player, hand, hitResult);
-    }
-
-    public static boolean canApplyDye(BlockState state, DyeColor dyeColor) {
-        return getDyedState(state, dyeColor).getBlock() != state.getBlock();
     }
 
     public static BlockState getDyedState(BlockState state, DyeColor dyeColor) {
@@ -115,6 +117,10 @@ public class CafeChairBlock extends AbstractSeatBlock {
 
     public static DyeColor getColor(BlockState state) {
         return getColorMap().getOrDefault(state.getBlock(), DyeColor.WHITE);
+    }
+
+    public static boolean canApplyDye(BlockState state, DyeColor dyeColor) {
+        return state.getBlock() instanceof CafeChairBlock && dyeColor != null && getColor(state) != dyeColor;
     }
 
     private static void spawnDyeParticles(ServerLevel level, BlockHitResult hitResult, Vec3 viewVector, HumanoidArm brushArm, DyeColor sourceColor, DyeColor targetColor) {
@@ -138,13 +144,14 @@ public class CafeChairBlock extends AbstractSeatBlock {
         Vec3 location = hitResult.getLocation();
         Direction direction = hitResult.getDirection();
         for (int i = 0; i < count; i++) {
-            double x = location.x + (level.random.nextDouble() - 0.5D) * 0.28D + surfaceOffset(direction.getStepX());
-            double y = location.y + (level.random.nextDouble() - 0.5D) * 0.012D + surfaceOffset(direction.getStepY());
-            double z = location.z + (level.random.nextDouble() - 0.5D) * 0.28D + surfaceOffset(direction.getStepZ());
-            double sweepSpeed = (0.02D + level.random.nextDouble() * 0.025D) * armDirection * sweepDirection;
-            double speedX = delta.xd() * sweepSpeed + (level.random.nextDouble() - 0.5D) * 0.006D;
-            double speedY = delta.yd() * sweepSpeed + level.random.nextDouble() * 0.003D;
-            double speedZ = delta.zd() * sweepSpeed + (level.random.nextDouble() - 0.5D) * 0.006D;
+            RandomSource random = level.getRandom();
+            double x = location.x + (random.nextDouble() - 0.5D) * 0.28D + surfaceOffset(direction.getStepX());
+            double y = location.y + (random.nextDouble() - 0.5D) * 0.012D + surfaceOffset(direction.getStepY());
+            double z = location.z + (random.nextDouble() - 0.5D) * 0.28D + surfaceOffset(direction.getStepZ());
+            double sweepSpeed = (0.02D + random.nextDouble() * 0.025D) * armDirection * sweepDirection;
+            double speedX = delta.xd() * sweepSpeed + (random.nextDouble() - 0.5D) * 0.006D;
+            double speedY = delta.yd() * sweepSpeed + random.nextDouble() * 0.003D;
+            double speedZ = delta.zd() * sweepSpeed + (random.nextDouble() - 0.5D) * 0.006D;
             level.sendParticles(particle, x, y, z, 1, speedX, speedY, speedZ, 0.0D);
         }
     }
@@ -179,7 +186,14 @@ public class CafeChairBlock extends AbstractSeatBlock {
     }
 
     @Override
-    public BlockState updateShape(BlockState state, Direction direction, BlockState neighborState, LevelAccessor level, BlockPos pos, BlockPos neighborPos) {
+    protected BlockState updateShape(
+            BlockState state,
+            Direction direction,
+            BlockState neighborState,
+            LevelAccessor level,
+            BlockPos pos,
+            BlockPos neighborPos
+    ) {
         BlockState updatedState = super.updateShape(state, direction, neighborState, level, pos, neighborPos);
         return direction == Direction.DOWN && !updatedState.canSurvive(level, pos)
                 ? Blocks.AIR.defaultBlockState()
@@ -197,10 +211,6 @@ public class CafeChairBlock extends AbstractSeatBlock {
             super.updateEntityAfterFallOn(level, entity);
             return;
         }
-        bounceUp(entity);
-    }
-
-    private void bounceUp(Entity entity) {
         Vec3 deltaMovement = entity.getDeltaMovement();
         if (deltaMovement.y < 0.0D) {
             double bounceScale = entity instanceof LivingEntity ? 1.0D : 0.8D;

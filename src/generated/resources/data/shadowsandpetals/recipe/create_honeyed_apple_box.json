@@ -1,0 +1,43 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    {
+      "item": "shadowsandpetals:box"
+    },
+    {
+      "item": "create:honeyed_apple"
+    },
+    {
+      "item": "create:honeyed_apple"
+    },
+    {
+      "item": "create:honeyed_apple"
+    },
+    {
+      "item": "create:honeyed_apple"
+    },
+    {
+      "item": "create:honeyed_apple"
+    },
+    {
+      "item": "create:honeyed_apple"
+    },
+    {
+      "item": "create:honeyed_apple"
+    },
+    {
+      "item": "create:honeyed_apple"
+    }
+  ],
+  "result": {
+    "components": {
+      "minecraft:block_entity_data": {
+        "Content": "create:honeyed_apple",
+        "id": "shadowsandpetals:box"
+      }
+    },
+    "count": 1,
+    "id": "shadowsandpetals:box"
+  }
+}

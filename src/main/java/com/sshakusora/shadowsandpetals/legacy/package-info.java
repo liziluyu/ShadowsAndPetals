@@ -1,6 +1,6 @@
-@ParametersAreNonnullByDefault
-@MethodsReturnNonnullByDefault
 @FieldsAreNonnullByDefault
+@MethodsReturnNonnullByDefault
+@ParametersAreNonnullByDefault
 package com.sshakusora.shadowsandpetals.legacy;
 
 import net.minecraft.FieldsAreNonnullByDefault;

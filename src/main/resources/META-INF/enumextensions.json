@@ -1,0 +1,22 @@
+{
+    "entries": [
+        {
+            "enum": "net/minecraft/client/model/HumanoidModel$ArmPose",
+            "name": "SHADOWSANDPETALS_HARROW_DIGGING",
+            "constructor": "(ZLnet/neoforged/neoforge/client/IArmPoseTransformer;)V",
+            "parameters": {
+                "class": "com/sshakusora/shadowsandpetals/item/harrow/HarrowArmPoseEnumExtensions",
+                "field": "SHADOWSANDPETALS_HARROW_DIGGING"
+            }
+        },
+        {
+            "enum": "net/minecraft/client/model/HumanoidModel$ArmPose",
+            "name": "SHADOWSANDPETALS_HAMMER_AND_CHISEL",
+            "constructor": "(ZLnet/neoforged/neoforge/client/IArmPoseTransformer;)V",
+            "parameters": {
+                "class": "com/sshakusora/shadowsandpetals/item/hammer/HammerArmPoseEnumExtensions",
+                "field": "SHADOWSANDPETALS_HAMMER_AND_CHISEL"
+            }
+        }
+    ]
+}

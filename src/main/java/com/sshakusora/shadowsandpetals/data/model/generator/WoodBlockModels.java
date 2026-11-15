@@ -1,0 +1,188 @@
+package com.sshakusora.shadowsandpetals.data.model.generator;
+
+import com.sshakusora.shadowsandpetals.block.WoodSetList;
+import com.sshakusora.shadowsandpetals.block.decoration.WoodPostBlock;
+import com.sshakusora.shadowsandpetals.data.model.BlockModelContext;
+import com.sshakusora.shadowsandpetals.data.model.SAPBlockModelGenerator;
+import net.minecraft.core.Direction;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.ItemDisplayContext;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.RotatedPillarBlock;
+import net.neoforged.neoforge.client.model.generators.BlockModelBuilder;
+import net.neoforged.neoforge.client.model.generators.ConfiguredModel;
+import net.neoforged.neoforge.client.model.generators.ModelBuilder;
+import net.neoforged.neoforge.client.model.generators.ModelFile;
+
+import java.util.Map;
+
+public final class WoodBlockModels {
+    private WoodBlockModels() {}
+    public static void woodSet(BlockModelContext<? extends Block> context, SAPBlockModelGenerator generator,
+                               WoodSetList.WoodSet set) {
+        var provider = generator.provider();
+        RotatedPillarBlock log = set.log().get();
+        RotatedPillarBlock strippedLog = set.strippedLog().get();
+        RotatedPillarBlock wood = set.wood().get();
+        RotatedPillarBlock strippedWood = set.strippedWood().get();
+        ResourceLocation logSide = provider.blockTexture(log);
+        ResourceLocation strippedSide = provider.blockTexture(strippedLog);
+        provider.logBlock(log);
+        provider.logBlock(strippedLog);
+        provider.axisBlock(wood, logSide, logSide);
+        provider.axisBlock(strippedWood, strippedSide, strippedSide);
+
+        Block planks = set.planks().get();
+        ResourceLocation plankTexture = provider.blockTexture(planks);
+        ModelFile plankModel = provider.models().cubeAll(context.name(), plankTexture);
+        provider.simpleBlockWithItem(planks, plankModel);
+        provider.slabBlock(set.slab().get(), generator.blockModelId(planks), plankTexture);
+        provider.stairsBlock(set.stairs().get(), plankTexture);
+        provider.fenceBlock(set.fence().get(), plankTexture);
+        provider.fenceGateBlock(set.fenceGate().get(), plankTexture);
+        provider.pressurePlateBlock(set.pressurePlate().get(), plankTexture);
+        provider.buttonBlock(set.button().get(), plankTexture);
+        String fenceInventoryName = generator.blockModelId(set.fence().get()).getPath() + "_inventory";
+        String buttonInventoryName = generator.blockModelId(set.button().get()).getPath() + "_inventory";
+        ModelFile fenceInventory = provider.models().fenceInventory(fenceInventoryName, plankTexture);
+        ModelFile buttonInventory = provider.models().buttonInventory(buttonInventoryName, plankTexture);
+        StandardBlockModels.parentBlockItem(log, generator, generator.blockModelId(log));
+        StandardBlockModels.parentBlockItem(strippedLog, generator, generator.blockModelId(strippedLog));
+        StandardBlockModels.parentBlockItem(wood, generator, generator.blockModelId(wood));
+        StandardBlockModels.parentBlockItem(strippedWood, generator, generator.blockModelId(strippedWood));
+        StandardBlockModels.parentBlockItem(planks, generator, generator.blockModelId(planks));
+        StandardBlockModels.parentBlockItem(set.slab().get(), generator, generator.blockModelId(set.slab().get()));
+        StandardBlockModels.parentBlockItem(set.stairs().get(), generator, generator.blockModelId(set.stairs().get()));
+        provider.simpleBlockItem(set.fence().get(), fenceInventory);
+        StandardBlockModels.parentBlockItem(set.fenceGate().get(), generator,
+                generator.blockModelId(set.fenceGate().get()));
+        StandardBlockModels.parentBlockItem(set.pressurePlate().get(), generator,
+                generator.blockModelId(set.pressurePlate().get()));
+        provider.simpleBlockItem(set.button().get(), buttonInventory);
+    }
+    public static void post(BlockModelContext<? extends WoodPostBlock> context, SAPBlockModelGenerator generator,
+                            ResourceLocation sideTexture, ResourceLocation endTexture) {
+        WoodPostBlock block = context.get();
+        ResourceLocation core = generator.blockModelId(block);
+        createPostModel(generator, core.getPath(), sideTexture, endTexture, 0, 16, true);
+        createPostModel(generator, core.getPath() + "_link", sideTexture, endTexture, 0, 6, false);
+        createPostModel(generator, core.getPath() + "_link_top", sideTexture, endTexture, 10, 16, false);
+        for (WoodPostBlock.ConnectionType type : WoodPostBlock.ConnectionType.values()) {
+            if (!type.isChain()) continue;
+            ResourceLocation texture = type.texture();
+            createChainModel(generator, "block/wood_post_" + type.getSerializedName() + "_link", texture, false);
+            createChainModel(generator, "block/wood_post_" + type.getSerializedName() + "_link_top", texture, true);
+        }
+        generator.provider().getVariantBuilder(block).forAllStates(state -> {
+            Direction.Axis axis = state.getValue(WoodPostBlock.AXIS);
+            int x = axis == Direction.Axis.Y ? 0 : 90;
+            int y = axis == Direction.Axis.X ? 90 : 0;
+            return ConfiguredModel.builder().modelFile(generator.uncheckedModel(core))
+                    .rotationX(x).rotationY(y).uvLock(true).build();
+        });
+        StandardBlockModels.parentBlockItem(block, generator, core);
+    }
+
+    private static void createPostModel(SAPBlockModelGenerator generator, String path,
+                                        ResourceLocation side, ResourceLocation end,
+                                        float fromY, float toY, boolean includeDisplayTransforms) {
+        BlockModelBuilder builder = (BlockModelBuilder) generator.createModel(path, null,
+                Map.of("side", side, "end", end, "particle", side), null);
+        if (includeDisplayTransforms) {
+            addDisplayTransforms(builder);
+        }
+        var element = builder.element().from(6, fromY, 6).to(10, toY, 10);
+        element.face(Direction.DOWN).texture("#end");
+        element.face(Direction.UP).texture("#end");
+        element.face(Direction.NORTH).texture("#side");
+        element.face(Direction.SOUTH).texture("#side");
+        element.face(Direction.WEST).texture("#side");
+        element.face(Direction.EAST).texture("#side");
+        element.end();
+    }
+
+    private static void addDisplayTransforms(BlockModelBuilder builder) {
+        var transforms = builder.transforms();
+        transforms.transform(ItemDisplayContext.THIRD_PERSON_RIGHT_HAND)
+                .rotation(75.0F, 45.0F, 0.0F)
+                .translation(0.0F, 1.5F, 0.0F)
+                .scale(0.375F)
+                .end();
+        transforms.transform(ItemDisplayContext.THIRD_PERSON_LEFT_HAND)
+                .rotation(75.0F, 45.0F, 0.0F)
+                .translation(0.0F, 1.5F, 0.0F)
+                .scale(0.375F)
+                .end();
+        transforms.transform(ItemDisplayContext.FIRST_PERSON_RIGHT_HAND)
+                .rotation(0.0F, 135.0F, 0.0F)
+                .translation(0.0F, 1.0F, 0.0F)
+                .scale(0.4F)
+                .end();
+        transforms.transform(ItemDisplayContext.FIRST_PERSON_LEFT_HAND)
+                .rotation(0.0F, 135.0F, 0.0F)
+                .translation(0.0F, 1.0F, 0.0F)
+                .scale(0.4F)
+                .end();
+        transforms.transform(ItemDisplayContext.GROUND)
+                .translation(0.0F, 3.0F, 0.0F)
+                .scale(0.25F)
+                .end();
+        transforms.transform(ItemDisplayContext.GUI)
+                .rotation(30.0F, -135.0F, 0.0F)
+                .scale(0.65F)
+                .end();
+        transforms.transform(ItemDisplayContext.FIXED)
+                .scale(0.5F)
+                .end();
+        transforms.end();
+    }
+
+    private static void createChainModel(SAPBlockModelGenerator generator, String path,
+                                          ResourceLocation texture, boolean upper) {
+        if (!generator.shouldCreateModelOnce(path)) {
+            return;
+        }
+        BlockModelBuilder builder = (BlockModelBuilder) generator.createModel(path,
+                ResourceLocation.withDefaultNamespace("block/block"),
+                Map.of("all", texture, "particle", texture), "cutout");
+        float fromY = upper ? 10 : 0;
+        float toY = upper ? 16 : 6;
+        float originY = upper ? 18 : 8;
+        addChainPlane(builder, 6.5F, fromY, 8.0F, 9.5F, toY, 8.0F, originY, true);
+        addChainPlane(builder, 8.0F, fromY, 6.5F, 8.0F, toY, 9.5F, originY, false);
+    }
+
+    private static void addChainPlane(BlockModelBuilder builder,
+                                      float fromX, float fromY, float fromZ,
+                                      float toX, float toY, float toZ,
+                                      float originY, boolean northSouthFaces) {
+        ModelBuilder<?>.ElementBuilder element = builder.element()
+                .from(fromX, fromY, fromZ)
+                .to(toX, toY, toZ)
+                .shade(false);
+        element.rotation()
+                .axis(Direction.Axis.Y)
+                .angle(45.0F)
+                .origin(8.0F, originY, 8.0F)
+                .end();
+
+        float uvMin = fromY <= 0.0F ? 10.0F : 0.0F;
+        float uvMax = fromY <= 0.0F ? 10.0F + (toY - fromY) : toY - fromY;
+        if (northSouthFaces) {
+            addChainFace(element, Direction.NORTH, 0.0F, uvMin, 3.0F, uvMax);
+            addChainFace(element, Direction.SOUTH, 0.0F, uvMin, 3.0F, uvMax);
+        } else {
+            addChainFace(element, Direction.EAST, 3.0F, uvMin, 6.0F, uvMax);
+            addChainFace(element, Direction.WEST, 3.0F, uvMin, 6.0F, uvMax);
+        }
+        element.end();
+    }
+
+    private static void addChainFace(ModelBuilder<?>.ElementBuilder element,
+                                     Direction direction,
+                                     float u1, float v1, float u2, float v2) {
+        element.face(direction)
+                .texture("#all")
+                .uvs(u1, v1, u2, v2);
+    }
+}

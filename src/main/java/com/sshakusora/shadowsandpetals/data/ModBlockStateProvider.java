@@ -1,9 +1,10 @@
 package com.sshakusora.shadowsandpetals.data;
 
 
-import com.sshakusora.shadowsandpetals.block.decoration.BoxBlock;
 import com.sshakusora.shadowsandpetals.block.decoration.IngotPileBlock;
 import com.sshakusora.shadowsandpetals.block.decoration.VanityBlock;
+import com.sshakusora.shadowsandpetals.data.model.ModelDatagenRegistry;
+import com.sshakusora.shadowsandpetals.data.model.SAPBlockModelGenerator;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.data.PackOutput;
@@ -34,6 +35,7 @@ public class ModBlockStateProvider extends BlockStateProvider {
         for (var generator : DatagenBlockStateRegistry.generators()) {
             generator.accept(this);
         }
+        ModelDatagenRegistry.generateBlocks(new SAPBlockModelGenerator(this));
     }
 
     public void logBlockWithItem(RotatedPillarBlock block) {
@@ -74,30 +76,6 @@ public class ModBlockStateProvider extends BlockStateProvider {
         simpleBlockItem(block, model);
     }
 
-    public void boxBlock(BoxBlock block) {
-        var bottomModel = models().getExistingFile(modLoc("block/box"));
-        var topModel = models().getExistingFile(modLoc("block/box_top"));
-        var doubleModel = models().getExistingFile(modLoc("block/box_double"));
-
-        getVariantBuilder(block).forAllStates(state -> {
-            var model = switch (state.getValue(BoxBlock.TYPE)) {
-                case DOUBLE -> doubleModel;
-                case TOP -> topModel;
-                default -> bottomModel;
-            };
-            int rotationY = switch (state.getValue(BoxBlock.FACING)) {
-                case EAST -> 90;
-                case SOUTH -> 180;
-                case WEST -> 270;
-                default -> 0;
-            };
-            return ConfiguredModel.builder()
-                    .modelFile(model)
-                    .rotationY(rotationY)
-                    .build();
-        });
-    }
-
     public void ingotPileBlock(IngotPileBlock block) {
         String blockName = name(block);
         String metalName = blockName.endsWith("_ingot_pile")
@@ -134,9 +112,15 @@ public class ModBlockStateProvider extends BlockStateProvider {
                 ? blockName.substring(0, blockName.length() - "_vanity".length())
                 : blockName;
 
-        // TODO: Need To Replace Oak Upper
-        ResourceLocation lowerModel = modelExists("block/vanity/" + woodName + "_lower") ? modLoc("block/vanity/" + woodName + "_lower") : modLoc("block/vanity/oak_lower");
-        ResourceLocation upperModel = modelExists("block/vanity/" + woodName + "_upper") ? modLoc("block/vanity/" + woodName + "_upper") : modLoc("block/vanity/oak_upper");
+        // Every registered wood type has its own lower/upper model.  Keep the
+        // oak fallback for third-party/generated variants that are assembled
+        // without an asset pair yet.
+        ResourceLocation lowerModel = modelExists("block/vanity/" + woodName + "_lower")
+                ? modLoc("block/vanity/" + woodName + "_lower")
+                : modLoc("block/vanity/oak_lower");
+        ResourceLocation upperModel = modelExists("block/vanity/" + woodName + "_upper")
+                ? modLoc("block/vanity/" + woodName + "_upper")
+                : modLoc("block/vanity/oak_upper");
         getVariantBuilder(block).forAllStates(state -> {
             ResourceLocation model = state.getValue(VanityBlock.HALF) == DoubleBlockHalf.LOWER ? lowerModel : upperModel;
             int rotationY = switch (state.getValue(VanityBlock.FACING)) {

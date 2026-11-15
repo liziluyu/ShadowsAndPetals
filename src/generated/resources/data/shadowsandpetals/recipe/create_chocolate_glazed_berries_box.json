@@ -1,0 +1,43 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    {
+      "item": "shadowsandpetals:box"
+    },
+    {
+      "item": "create:chocolate_glazed_berries"
+    },
+    {
+      "item": "create:chocolate_glazed_berries"
+    },
+    {
+      "item": "create:chocolate_glazed_berries"
+    },
+    {
+      "item": "create:chocolate_glazed_berries"
+    },
+    {
+      "item": "create:chocolate_glazed_berries"
+    },
+    {
+      "item": "create:chocolate_glazed_berries"
+    },
+    {
+      "item": "create:chocolate_glazed_berries"
+    },
+    {
+      "item": "create:chocolate_glazed_berries"
+    }
+  ],
+  "result": {
+    "components": {
+      "minecraft:block_entity_data": {
+        "Content": "create:chocolate_glazed_berries",
+        "id": "shadowsandpetals:box"
+      }
+    },
+    "count": 1,
+    "id": "shadowsandpetals:box"
+  }
+}

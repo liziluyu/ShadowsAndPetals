@@ -1,0 +1,107 @@
+package com.sshakusora.shadowsandpetals.client.renderer;
+
+import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.VertexConsumer;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.LevelRenderer;
+import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.RenderType;
+import net.minecraft.client.renderer.block.BlockRenderDispatcher;
+import net.minecraft.client.renderer.entity.ItemRenderer;
+import net.minecraft.client.resources.model.BakedModel;
+import net.minecraft.client.resources.model.ModelResourceLocation;
+import net.minecraft.core.BlockPos;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.RandomSource;
+import net.minecraft.world.item.ItemDisplayContext;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.state.BlockState;
+import net.neoforged.neoforge.client.RenderTypeHelper;
+import net.neoforged.neoforge.client.model.data.ModelData;
+import org.jetbrains.annotations.Nullable;
+
+/** Shared rendering helpers for animated block entities. */
+final class LegacyBlockEntityRenderSupport {
+    private LegacyBlockEntityRenderSupport() {
+    }
+
+    static void renderStandalone(
+            BlockRenderDispatcher dispatcher,
+            ResourceLocation modelId,
+            BlockState tintState,
+            PoseStack poseStack,
+            MultiBufferSource buffers,
+            int light,
+            int overlay
+    ) {
+        BakedModel model = Minecraft.getInstance().getModelManager()
+                .getModel(ModelResourceLocation.standalone(modelId));
+        if (model == Minecraft.getInstance().getModelManager().getMissingModel()) {
+            return;
+        }
+        renderModel(dispatcher, model, tintState, poseStack, buffers, light, overlay);
+    }
+
+    static void renderModel(
+            BlockRenderDispatcher dispatcher,
+            BakedModel model,
+            BlockState state,
+            PoseStack poseStack,
+            MultiBufferSource buffers,
+            int light,
+            int overlay
+    ) {
+        ModelData modelData = ModelData.EMPTY;
+        RandomSource random = RandomSource.create(42L);
+        for (RenderType renderType : model.getRenderTypes(state, random, modelData)) {
+            VertexConsumer consumer = buffers.getBuffer(
+                    RenderTypeHelper.getEntityRenderType(renderType, false)
+            );
+            dispatcher.getModelRenderer().renderModel(
+                    poseStack.last(),
+                    consumer,
+                    state,
+                    model,
+                    1.0F,
+                    1.0F,
+                    1.0F,
+                    light,
+                    overlay,
+                    modelData,
+                    renderType
+            );
+        }
+    }
+
+    static void renderItem(
+            ItemRenderer renderer,
+            ItemStack stack,
+            PoseStack poseStack,
+            MultiBufferSource buffers,
+            @Nullable Level level,
+            int light,
+            int overlay
+    ) {
+        if (stack.isEmpty()) {
+            return;
+        }
+        renderer.renderStatic(
+                stack,
+                ItemDisplayContext.FIXED,
+                light,
+                overlay,
+                poseStack,
+                buffers,
+                level,
+                0
+        );
+    }
+
+    static int blockLight(@Nullable Level level, BlockPos pos) {
+        if (level == null) {
+            return 0xF000F0;
+        }
+        return LevelRenderer.getLightColor(level, pos);
+    }
+}

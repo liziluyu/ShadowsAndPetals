@@ -1,29 +1,41 @@
 package com.sshakusora.shadowsandpetals.registries.builder;
 
 import com.sshakusora.shadowsandpetals.ShadowsAndPetals;
+import com.sshakusora.shadowsandpetals.client.ct.CTRegistry;
+import com.sshakusora.shadowsandpetals.client.ct.CTTextureSelector;
+import com.sshakusora.shadowsandpetals.client.ct.CTTextureType;
+import com.sshakusora.shadowsandpetals.client.tooltip.ItemDescription;
 import com.sshakusora.shadowsandpetals.data.*;
+import com.sshakusora.shadowsandpetals.data.lang.TooltipLangBuilder;
+import com.sshakusora.shadowsandpetals.data.model.BlockModelCallback;
+import com.sshakusora.shadowsandpetals.data.model.ItemModelCallback;
+import com.sshakusora.shadowsandpetals.data.model.ModelDatagenRegistry;
 import com.sshakusora.shadowsandpetals.legacy.BlockStateAliasRegistry;
+import com.sshakusora.shadowsandpetals.legacy.LegacyBlockAliasRegistry;
 import com.sshakusora.shadowsandpetals.legacy.LegacyCompatIds;
 import com.sshakusora.shadowsandpetals.legacy.LegacyStateBlock;
-import com.sshakusora.shadowsandpetals.registries.BlockTagRegistry;
-import com.sshakusora.shadowsandpetals.registries.CreativeTabContentsRegistry;
-import com.sshakusora.shadowsandpetals.registries.CreativeTabType;
-import com.sshakusora.shadowsandpetals.registries.SAPRegistries;
+import com.sshakusora.shadowsandpetals.registries.*;
+import com.sshakusora.shadowsandpetals.tooltip.TooltipComponentRegistry;
+import com.sshakusora.shadowsandpetals.tooltip.TooltipModifier;
+import com.sshakusora.shadowsandpetals.tooltip.TooltipTranslationKeys;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.tags.BlockTags;
 import net.minecraft.tags.TagKey;
+import net.minecraft.world.inventory.tooltip.TooltipComponent;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.registries.DeferredBlock;
+import net.neoforged.neoforge.registries.DeferredItem;
 import net.neoforged.neoforge.registries.DeferredRegister;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
-import java.util.function.BiConsumer;
-import java.util.function.BiFunction;
-import java.util.function.Consumer;
-import java.util.function.Function;
+import java.util.function.*;
 
 /**
  * Fluent builder for block registration.
@@ -37,19 +49,34 @@ import java.util.function.Function;
 public class RegBlockBuilder<B extends Block> {
     private final DeferredRegister.Blocks registry;
     private final String name;
-    private BlockBehaviour.Properties properties = BlockBehaviour.Properties.of();
-    private Function<BlockBehaviour.Properties, B> blockFactory;
+    private Supplier<BlockBehaviour.Properties> propertiesFactory = BlockBehaviour.Properties::of;
+    private @Nullable Function<BlockBehaviour.Properties, B> blockFactory;
     private boolean withItem;
-    private Item.Properties itemProperties;
-    private Function<Block, ? extends BlockItem> itemFactory;
+    private @Nullable Item.Properties itemProperties;
+    private @Nullable BiFunction<Block, Item.Properties, ? extends BlockItem> itemFactory;
     private final Map<String, String> langNames = new LinkedHashMap<>();
-    private BiConsumer<ModBlockStateProvider, DeferredBlock<B>> blockStateGenerator;
-    private BiConsumer<ModBlockLootProvider, DeferredBlock<B>> blockLootGenerator;
-    private BiConsumer<ModRecipeProvider, DeferredBlock<B>> recipeGenerator;
-    private final List<CreativeTabType> creativeTabs = new ArrayList<>();
+    private @Nullable Supplier<? extends BlockModelCallback<B>> blockStateGenerator;
+    private @Nullable BiConsumer<ModBlockLootProvider, DeferredBlock<B>> blockLootGenerator;
+    private @Nullable BiConsumer<ModRecipeProvider, DeferredBlock<B>> recipeGenerator;
+    private @Nullable Supplier<? extends ItemModelCallback<BlockItem>> itemModelGenerator;
+    private @Nullable Function<DeferredBlock<B>, ResourceLocation> clientItemModelFactory;
+    private @Nullable Function<DeferredBlock<B>, ResourceLocation> customClientItemTypeFactory;
+    private @Nullable Function<DeferredBlock<B>, ResourceLocation> ctBaseTextureFactory;
+    private @Nullable Function<DeferredBlock<B>, List<ResourceLocation>> ctConnectedTexturesFactory;
+    private @Nullable CTTextureSelector ctTextureSelector;
+    private @Nullable CTTextureType ctTextureType;
+    private int ctPadding;
+    private final List<CreativeTabRegistry.CreativeTabKey> creativeTabs = new ArrayList<>();
+    private final Map<CreativeTabRegistry.CreativeTabKey, CreativeTabOrder> creativeTabOrders = new EnumMap<>(CreativeTabRegistry.CreativeTabKey.class);
     private final List<ResourceLocation> aliases = new ArrayList<>();
+    private final List<ResourceLocation> itemAliases = new ArrayList<>();
     private final List<StateAliasSpec<?>> stateAliases = new ArrayList<>();
     private final List<TagKey<Block>> blockTags = new ArrayList<>();
+    private boolean hasTooltipDescription;
+    private @Nullable Consumer<TooltipLangBuilder> tooltipDescriptionGenerator;
+    private @Nullable TooltipModifier tooltipModifier;
+    private @Nullable BiFunction<B, ItemStack, @Nullable TooltipComponent> tooltipComponentFactory;
+    private int tooltipComponentMinimumWidth;
 
     public RegBlockBuilder(DeferredRegister.Blocks registry, String name) {
         this.registry = registry;
@@ -58,9 +85,9 @@ public class RegBlockBuilder<B extends Block> {
 
     /**
     * Sets the exact {@link BlockBehaviour.Properties} instance used for registration.
-    */
+     */
     public RegBlockBuilder<B> properties(BlockBehaviour.Properties properties) {
-        this.properties = properties;
+        this.propertiesFactory = () -> properties;
         return this;
     }
 
@@ -68,7 +95,7 @@ public class RegBlockBuilder<B extends Block> {
      * Builds a fresh {@link BlockBehaviour.Properties} via a configurator.
      */
     public RegBlockBuilder<B> properties(Function<BlockBehaviour.Properties, BlockBehaviour.Properties> configurator) {
-        this.properties = configurator.apply(BlockBehaviour.Properties.of());
+        this.propertiesFactory = () -> configurator.apply(BlockBehaviour.Properties.of());
         return this;
     }
 
@@ -111,8 +138,16 @@ public class RegBlockBuilder<B extends Block> {
      * Registers a custom {@link BlockItem} implementation for this block.
      */
     public RegBlockBuilder<B> withCustomItem(Function<Block, ? extends BlockItem> factory) {
+        return withCustomItem((block, properties) -> factory.apply(block));
+    }
+
+    /**
+     * Registers a custom {@link BlockItem} implementation with correctly keyed item properties.
+     */
+    public RegBlockBuilder<B> withCustomItem(BiFunction<Block, Item.Properties, ? extends BlockItem> factory) {
         this.withItem = true;
         this.itemFactory = factory;
+        this.itemProperties = new Item.Properties();
         return this;
     }
 
@@ -133,10 +168,66 @@ public class RegBlockBuilder<B extends Block> {
     }
 
     /**
+     * Opts this block item into the {@link ItemDescription} tooltip system.
+     * <p>
+     * When set, the block's item will display a three-state tooltip driven by
+     * localisation keys: a brief hint by default, a summary with behaviours
+     * when Shift is held, and controls when Ctrl is held.
+     * <p>
+     * The actual tooltip text must be registered separately via
+     * {@link TooltipLangBuilder}
+     * during data generation.
+     */
+    public RegBlockBuilder<B> tooltipDescription() {
+        this.hasTooltipDescription = true;
+        return this;
+    }
+
+    /**
+     * Opts this block item into the tooltip system and registers its localised text.
+     * The translation-key prefix uses the item namespace because the tooltip is
+     * displayed for the block's {@link BlockItem}.
+     */
+    public RegBlockBuilder<B> tooltipDescription(Consumer<TooltipLangBuilder> generator) {
+        this.hasTooltipDescription = true;
+        this.tooltipDescriptionGenerator = Objects.requireNonNull(generator);
+        return this;
+    }
+
+    /**
+     * Adds a dynamic modifier to this block item's foundation tooltip pipeline.
+     */
+    public RegBlockBuilder<B> tooltipModifier(TooltipModifier modifier) {
+        this.tooltipModifier = Objects.requireNonNull(modifier);
+        return this;
+    }
+
+    /**
+     * Registers a custom component for this block item's tooltip.
+     */
+    public RegBlockBuilder<B> tooltipComponent(
+            BiFunction<B, ItemStack, @Nullable TooltipComponent> factory
+    ) {
+        return tooltipComponent(factory, 0);
+    }
+
+    /**
+     * Registers a custom component and minimum tooltip width for this block item.
+     */
+    public RegBlockBuilder<B> tooltipComponent(
+            BiFunction<B, ItemStack, @Nullable TooltipComponent> factory,
+            int minimumWidth
+    ) {
+        this.tooltipComponentFactory = Objects.requireNonNull(factory);
+        this.tooltipComponentMinimumWidth = Math.max(0, minimumWidth);
+        return this;
+    }
+
+    /**
      * Attaches a blockstate datagen callback.
      */
-    public RegBlockBuilder<B> blockstate(BiConsumer<ModBlockStateProvider, DeferredBlock<B>> generator) {
-        this.blockStateGenerator = generator;
+    public RegBlockBuilder<B> blockstate(Supplier<? extends BlockModelCallback<B>> generator) {
+        this.blockStateGenerator = Objects.requireNonNull(generator);
         return this;
     }
 
@@ -157,23 +248,168 @@ public class RegBlockBuilder<B extends Block> {
     }
 
     /**
+     * Attaches an item-model datagen callback for the block item.
+     */
+    public RegBlockBuilder<B> itemModel(Supplier<? extends ItemModelCallback<BlockItem>> generator) {
+        this.itemModelGenerator = Objects.requireNonNull(generator);
+        return this;
+    }
+
+    /**
+     * Attaches a client item-model mapping used by the unified model provider.
+     */
+    public RegBlockBuilder<B> clientItem(Function<DeferredBlock<B>, ResourceLocation> modelFactory) {
+        this.clientItemModelFactory = modelFactory;
+        return this;
+    }
+
+    /**
+     * Attaches a fixed client item-model mapping used by the unified model provider.
+     */
+    public RegBlockBuilder<B> clientItem(ResourceLocation modelId) {
+        return clientItem(block -> modelId);
+    }
+
+    /**
+     * Attaches a custom client item model type used by the unified model provider.
+     * <p>
+     * Use this for special item models whose JSON entry only needs a {@code type}
+     * property instead of the vanilla {@code minecraft:model + model} pair.
+     */
+    public RegBlockBuilder<B> customClientItem(Function<DeferredBlock<B>, ResourceLocation> modelTypeFactory) {
+        this.customClientItemTypeFactory = modelTypeFactory;
+        return this;
+    }
+
+    /**
+     * Attaches a fixed custom client item model type used by the unified model provider.
+     */
+    public RegBlockBuilder<B> customClientItem(ResourceLocation modelType) {
+        return customClientItem(block -> modelType);
+    }
+
+    /**
+     * Registers connected textures using the default texture names:
+     * {@code block/<id>} and {@code block/<id>_connected_bleed}.
+     */
+    public RegBlockBuilder<B> connectedTexture(CTTextureType type) {
+        return connectedTexture(
+                block -> ShadowsAndPetals.asResource("block/" + block.getId().getPath()),
+                block -> ShadowsAndPetals.asResource("block/" + block.getId().getPath() + "_connected_bleed"),
+                type,
+                1
+        );
+    }
+
+    /**
+     * Registers connected textures with fixed texture ids.
+     */
+    public RegBlockBuilder<B> connectedTexture(ResourceLocation baseTexture, ResourceLocation connectedTexture, CTTextureType type) {
+        return connectedTexture(block -> baseTexture, block -> connectedTexture, type, 0);
+    }
+
+    /**
+     * Registers connected textures with fixed texture ids and an inner tile padding.
+     */
+    public RegBlockBuilder<B> connectedTexture(ResourceLocation baseTexture, ResourceLocation connectedTexture, CTTextureType type, int padding) {
+        return connectedTexture(block -> baseTexture, block -> connectedTexture, type, padding);
+    }
+
+    /**
+     * Registers connected textures with texture ids derived from the registered block.
+     */
+    public RegBlockBuilder<B> connectedTexture(
+            Function<DeferredBlock<B>, ResourceLocation> baseTextureFactory,
+            Function<DeferredBlock<B>, ResourceLocation> connectedTextureFactory,
+            CTTextureType type
+    ) {
+        return connectedTexture(baseTextureFactory, connectedTextureFactory, type, 0);
+    }
+
+    /**
+     * Registers connected textures with texture ids derived from the registered block and an inner tile padding.
+     */
+    public RegBlockBuilder<B> connectedTexture(
+            Function<DeferredBlock<B>, ResourceLocation> baseTextureFactory,
+            Function<DeferredBlock<B>, ResourceLocation> connectedTextureFactory,
+            CTTextureType type,
+            int padding
+    ) {
+        this.ctBaseTextureFactory = Objects.requireNonNull(baseTextureFactory, "baseTextureFactory");
+        Objects.requireNonNull(connectedTextureFactory, "connectedTextureFactory");
+        this.ctConnectedTexturesFactory = block -> List.of(connectedTextureFactory.apply(block));
+        this.ctTextureSelector = CTTextureSelector.FIRST;
+        this.ctTextureType = Objects.requireNonNull(type, "type");
+        this.ctPadding = Math.max(0, padding);
+        return this;
+    }
+
+    /**
+     * Registers multiple connected textures and a position-based rule that
+     * selects their zero-based index.
+     */
+    public RegBlockBuilder<B> connectedTextures(
+            ResourceLocation baseTexture,
+            List<ResourceLocation> connectedTextures,
+            CTTextureSelector textureSelector,
+            CTTextureType type,
+            int padding
+    ) {
+        List<ResourceLocation> textures = List.copyOf(connectedTextures);
+        return connectedTextures(
+                block -> baseTexture,
+                block -> textures,
+                textureSelector,
+                type,
+                padding);
+    }
+
+    /**
+     * Registers multiple connected textures derived from the registered block
+     * and a position-based selection rule.
+     */
+    public RegBlockBuilder<B> connectedTextures(
+            Function<DeferredBlock<B>, ResourceLocation> baseTextureFactory,
+            Function<DeferredBlock<B>, List<ResourceLocation>> connectedTexturesFactory,
+            CTTextureSelector textureSelector,
+            CTTextureType type,
+            int padding
+    ) {
+        this.ctBaseTextureFactory = Objects.requireNonNull(baseTextureFactory, "baseTextureFactory");
+        this.ctConnectedTexturesFactory = Objects.requireNonNull(connectedTexturesFactory, "connectedTexturesFactory");
+        this.ctTextureSelector = Objects.requireNonNull(textureSelector, "textureSelector");
+        this.ctTextureType = Objects.requireNonNull(type, "type");
+        this.ctPadding = Math.max(0, padding);
+        return this;
+    }
+
+    /**
      * Adds the registered block item to a creative tab.
      */
-    public RegBlockBuilder<B> creativeTab(CreativeTabType tab) {
+    public RegBlockBuilder<B> creativeTab(CreativeTabRegistry.CreativeTabKey tab) {
         this.creativeTabs.add(tab);
+        return this;
+    }
+
+    /**
+     * Adds the registered block item to a creative tab in an explicit sort group.
+     */
+    public RegBlockBuilder<B> creativeTab(CreativeTabRegistry.CreativeTabKey tab, CreativeTabOrder order) {
+        this.creativeTabs.add(tab);
+        this.creativeTabOrders.put(tab, order);
         return this;
     }
 
     /**
      * Adds the registered block item to multiple creative tabs.
      */
-    public RegBlockBuilder<B> creativeTabs(CreativeTabType... tabs) {
+    public RegBlockBuilder<B> creativeTabs(CreativeTabRegistry.CreativeTabKey... tabs) {
         Collections.addAll(this.creativeTabs, tabs);
         return this;
     }
 
     /**
-     * Adds a block tag for datagen (e.g. {@link net.minecraft.tags.BlockTags#MINEABLE_WITH_PICKAXE}).
+     * Adds a block tag for datagen (e.g. {@link BlockTags#MINEABLE_WITH_PICKAXE}).
      */
     public RegBlockBuilder<B> tag(TagKey<Block> tag) {
         this.blockTags.add(tag);
@@ -193,7 +429,7 @@ public class RegBlockBuilder<B extends Block> {
      * Adds a same-namespace registry alias for save compatibility or renames.
      */
     public RegBlockBuilder<B> alias(String oldPath) {
-        this.aliases.add(ResourceLocation.fromNamespaceAndPath(ShadowsAndPetals.MOD_ID, oldPath));
+        this.aliases.add(ShadowsAndPetals.asResource(oldPath));
         return this;
     }
 
@@ -202,6 +438,24 @@ public class RegBlockBuilder<B extends Block> {
      */
     public RegBlockBuilder<B> alias(String oldNamespace, String oldPath) {
         this.aliases.add(ResourceLocation.fromNamespaceAndPath(oldNamespace, oldPath));
+        return this;
+    }
+
+    /**
+     * Adds a same-namespace alias for the block item created by {@link #withItem()}.
+     * <p>
+     * Block and item registries are separate in NeoForge, so a block alias does not make the
+     * corresponding block item id resolve automatically.  Use this method when an old save can
+     * contain the old block item in an inventory or container.
+     */
+    public RegBlockBuilder<B> itemAlias(String oldPath) {
+        this.itemAliases.add(ShadowsAndPetals.asResource(oldPath));
+        return this;
+    }
+
+    /** Adds a cross-namespace alias for the block item created by {@link #withItem()}. */
+    public RegBlockBuilder<B> itemAlias(String oldNamespace, String oldPath) {
+        this.itemAliases.add(ResourceLocation.fromNamespaceAndPath(oldNamespace, oldPath));
         return this;
     }
 
@@ -271,10 +525,10 @@ public class RegBlockBuilder<B extends Block> {
     public DeferredBlock<B> register() {
         DeferredBlock<B> deferredBlock;
         if (blockFactory == null) {
-            DeferredBlock<Block> simpleBlock = registry.registerSimpleBlock(name, properties);
+            DeferredBlock<Block> simpleBlock = registry.register(name, () -> new Block(propertiesFactory.get()));
             deferredBlock = (DeferredBlock<B>) simpleBlock;
         } else {
-            deferredBlock = registry.registerBlock(name, blockFactory, properties);
+            deferredBlock = registry.register(name, () -> blockFactory.apply(propertiesFactory.get()));
         }
 
         registerStateAliases(deferredBlock);
@@ -282,11 +536,49 @@ public class RegBlockBuilder<B extends Block> {
         registerBlockTags(deferredBlock);
 
         if (withItem) {
-            registerBlockItem(deferredBlock);
+            DeferredItem<BlockItem> blockItem = registerBlockItem(deferredBlock);
+            applyItemAliases(blockItem.getId());
+            applyItemDatagenUnchecked(deferredBlock, blockItem);
+        } else if (!itemAliases.isEmpty()) {
+            throw new IllegalStateException("Block '" + name + "' cannot have item aliases without an item");
+        }
+
+        if (hasTooltipDescription && withItem) {
+            ResourceLocation itemId = ShadowsAndPetals.asResource(name);
+            TooltipModifier.register(itemId, new ItemDescription.Modifier(() ->
+                BuiltInRegistries.ITEM.get(itemId)));
+            registerTooltipDescription();
+        }
+
+        if (tooltipModifier != null) {
+            if (!withItem) {
+                throw new IllegalStateException("Block '" + name + "' cannot have an item tooltip modifier without an item");
+            }
+            TooltipModifier.register(ShadowsAndPetals.asResource(name), tooltipModifier);
+        }
+
+        if (tooltipComponentFactory != null) {
+            if (!withItem) {
+                throw new IllegalStateException("Block '" + name + "' cannot have an item tooltip component without an item");
+            }
+            TooltipComponentRegistry.register(
+                    ShadowsAndPetals.asResource(name),
+                    stack -> tooltipComponentFactory.apply(deferredBlock.get(), stack),
+                    tooltipComponentMinimumWidth);
         }
 
         registerCreativeTabs(deferredBlock);
         return deferredBlock;
+    }
+
+    private void registerTooltipDescription() {
+        if (tooltipDescriptionGenerator == null) {
+            return;
+        }
+        TooltipLangBuilder tooltip = TooltipLangBuilder.of(
+                TooltipTranslationKeys.itemTooltip(ShadowsAndPetals.asResource(name)));
+        tooltipDescriptionGenerator.accept(tooltip);
+        tooltip.register();
     }
 
     private void postRegister(DeferredBlock<? extends Block> block) {
@@ -295,6 +587,7 @@ public class RegBlockBuilder<B extends Block> {
         applyBlockStateUnchecked(block);
         applyBlockLootUnchecked(block);
         applyRecipeUnchecked(block);
+        applyConnectedTextureUnchecked(block);
     }
 
     private void applyAliases(ResourceLocation targetId) {
@@ -303,10 +596,32 @@ public class RegBlockBuilder<B extends Block> {
         }
     }
 
+    private void applyItemAliases(ResourceLocation targetId) {
+        for (ResourceLocation alias : itemAliases) {
+            SAPRegistries.ITEMS.addAlias(alias, targetId);
+        }
+    }
+
     private void registerBlockTags(DeferredBlock<B> block) {
         for (TagKey<Block> tag : blockTags) {
             BlockTagRegistry.add(tag, block);
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    private void applyConnectedTextureUnchecked(DeferredBlock<? extends Block> block) {
+        if (ctTextureType == null) {
+            return;
+        }
+
+        DeferredBlock<B> typedBlock = (DeferredBlock<B>) block;
+        CTRegistry.register(
+                block.getId(),
+                ctBaseTextureFactory.apply(typedBlock),
+                ctConnectedTexturesFactory.apply(typedBlock),
+                ctTextureSelector,
+                ctTextureType,
+                ctPadding);
     }
 
     private void registerStateAliases(DeferredBlock<B> targetBlock) {
@@ -317,8 +632,16 @@ public class RegBlockBuilder<B extends Block> {
 
     private <L extends Block> void registerStateAlias(DeferredBlock<B> targetBlock, StateAliasSpec<L> aliasSpec, int index) {
         String compatName = buildCompatAliasName(aliasSpec.aliasId(), index);
-        DeferredBlock<L> compatBlock = registry.registerBlock(compatName, aliasSpec.factory(), properties);
+        // Keep both the legacy block factory and the target properties lazy.  A number of target
+        // builders (for example the custom-wood vanities) derive their properties from another
+        // deferred block.  Evaluating that supplier while the registry classes are still being
+        // initialized would attempt to resolve an unbound ResourceKey and abort mod loading.
+        DeferredBlock<L> compatBlock = registry.register(
+                compatName,
+                () -> aliasSpec.factory().apply(propertiesFactory.get())
+        );
         registry.addAlias(aliasSpec.aliasId(), compatBlock.getId());
+        LegacyBlockAliasRegistry.add(aliasSpec.aliasId(), compatBlock);
         BlockStateAliasRegistry.add(compatBlock, () -> targetBlock.get().defaultBlockState(), aliasSpec.converter());
         DatagenBlockLootRegistry.add(compatBlock.getId(), provider -> provider.addTable(compatBlock.get(), provider.noDropTable()));
     }
@@ -342,12 +665,8 @@ public class RegBlockBuilder<B extends Block> {
 
     @SuppressWarnings("unchecked")
     private void applyBlockStateUnchecked(DeferredBlock<? extends Block> block) {
-        if (blockStateGenerator == null) {
-            return;
-        }
-
         DeferredBlock<B> typedBlock = (DeferredBlock<B>) block;
-        DatagenBlockStateRegistry.add(block.getId(), provider -> blockStateGenerator.accept(provider, typedBlock));
+        ModelDatagenRegistry.addBlock(typedBlock, blockStateGenerator);
     }
 
     @SuppressWarnings("unchecked")
@@ -373,14 +692,25 @@ public class RegBlockBuilder<B extends Block> {
         DatagenRecipeRegistry.add(block.getId(), provider -> recipeGenerator.accept(provider, typedBlock));
     }
 
-    private void registerBlockItem(DeferredBlock<? extends Block> block) {
+    @SuppressWarnings("unchecked")
+    private void applyItemDatagenUnchecked(DeferredBlock<? extends Block> block, DeferredItem<BlockItem> item) {
+        DeferredBlock<B> typedBlock = (DeferredBlock<B>) block;
+        ResourceLocation clientModel = clientItemModelFactory != null
+                ? clientItemModelFactory.apply(typedBlock)
+                : null;
+        ResourceLocation customType = customClientItemTypeFactory != null
+                ? customClientItemTypeFactory.apply(typedBlock)
+                : null;
+        ModelDatagenRegistry.addItem(item, itemModelGenerator, clientModel, customType);
+    }
+
+    private DeferredItem<BlockItem> registerBlockItem(DeferredBlock<? extends Block> block) {
         DeferredRegister.Items items = SAPRegistries.ITEMS;
+        final Item.Properties props = itemProperties;
         if (itemFactory != null) {
-            items.register(name, key -> itemFactory.apply(block.get()));
-        } else {
-            final Item.Properties props = itemProperties;
-            items.register(name, key -> new BlockItem(block.get(), props));
+            return items.registerItem(name, itemProps -> itemFactory.apply(block.get(), itemProps), props);
         }
+        return items.registerItem(name, itemProps -> new BlockItem(block.get(), itemProps), props);
     }
 
     private void registerCreativeTabs(DeferredBlock<? extends Block> block) {
@@ -392,8 +722,9 @@ public class RegBlockBuilder<B extends Block> {
             throw new IllegalStateException("Block '" + name + "' cannot be added to a creative tab without an item");
         }
 
-        for (CreativeTabType tab : creativeTabs) {
-            CreativeTabContentsRegistry.add(tab, block::get);
+        for (CreativeTabRegistry.CreativeTabKey tab : creativeTabs) {
+            CreativeTabContentsRegistry.add(tab, block::get,
+                    creativeTabOrders.getOrDefault(tab, CreativeTabOrder.DEFAULT));
         }
     }
 
@@ -401,7 +732,7 @@ public class RegBlockBuilder<B extends Block> {
      * Registers a plain {@link Block} without item, datagen, or alias side effects beyond the block entry itself.
      */
     public DeferredBlock<Block> simple() {
-        DeferredBlock<Block> block = registry.registerSimpleBlock(name, properties);
+        DeferredBlock<Block> block = registry.register(name, () -> new Block(propertiesFactory.get()));
         postRegister(block);
         return block;
     }
@@ -410,11 +741,13 @@ public class RegBlockBuilder<B extends Block> {
      * Registers a plain {@link Block} and a default {@link BlockItem} using the current item properties.
      */
     public DeferredBlock<Block> simpleWithItem() {
-        DeferredBlock<Block> block = registry.registerSimpleBlock(name, properties);
+        DeferredBlock<Block> block = registry.register(name, () -> new Block(propertiesFactory.get()));
         this.withItem = true;
         postRegister(block);
         final Item.Properties props = itemProperties != null ? itemProperties : new Item.Properties();
-        SAPRegistries.ITEMS.register(name, key -> new BlockItem(block.get(), props));
+        DeferredItem<BlockItem> item = SAPRegistries.ITEMS.registerSimpleBlockItem(name, block::get, props);
+        applyItemAliases(item.getId());
+        applyItemDatagenUnchecked(block, item);
         return block;
     }
 

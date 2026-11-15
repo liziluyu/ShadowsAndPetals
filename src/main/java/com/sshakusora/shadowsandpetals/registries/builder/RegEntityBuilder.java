@@ -166,7 +166,7 @@ public class RegEntityBuilder<E extends Entity> {
      * Adds a same-namespace registry alias for this entity type.
      */
     public RegEntityBuilder<E> alias(String oldPath) {
-        this.aliases.add(ResourceLocation.fromNamespaceAndPath(ShadowsAndPetals.MOD_ID, oldPath));
+        this.aliases.add(ShadowsAndPetals.asResource(oldPath));
         return this;
     }
 
@@ -196,7 +196,7 @@ public class RegEntityBuilder<E extends Entity> {
             if (!serialize) builder.noSave();
             if (!immuneToBlocks.isEmpty()) builder.immuneTo(immuneToBlocks.toArray(Block[]::new));
 
-            return builder.build(name);
+            return builder.build(key.toString());
         });
 
         for (ResourceLocation alias : aliases) {

@@ -31,13 +31,13 @@
     }
   ],
   "result": {
-    "count": 1,
-    "id": "shadowsandpetals:box",
     "components": {
       "minecraft:block_entity_data": {
         "Content": "minecraft:mutton",
         "id": "shadowsandpetals:box"
       }
-    }
+    },
+    "count": 1,
+    "id": "shadowsandpetals:box"
   }
 }

@@ -11,6 +11,7 @@ import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -30,7 +31,7 @@ import java.util.function.Supplier;
 public class RegBlockEntityBuilder<T extends BlockEntity> {
     private final DeferredRegister<BlockEntityType<?>> registry;
     private final String name;
-    private BiFunction<BlockPos, BlockState, T> factory;
+    private @Nullable BiFunction<BlockPos, BlockState, T> factory;
     private final List<Supplier<? extends Block>> validBlocks = new ArrayList<>();
     private final List<ResourceLocation> aliases = new ArrayList<>();
     private final List<BlockEntityAliasSpec> dataAliases = new ArrayList<>();
@@ -61,7 +62,7 @@ public class RegBlockEntityBuilder<T extends BlockEntity> {
      * Adds a same-namespace registry alias for the block entity type id.
      */
     public RegBlockEntityBuilder<T> alias(String oldPath) {
-        this.aliases.add(ResourceLocation.fromNamespaceAndPath(ShadowsAndPetals.MOD_ID, oldPath));
+        this.aliases.add(ShadowsAndPetals.asResource(oldPath));
         return this;
     }
 
@@ -106,7 +107,10 @@ public class RegBlockEntityBuilder<T extends BlockEntity> {
         }
 
         DeferredHolder<BlockEntityType<?>, BlockEntityType<T>> type = registry.register(name, key ->
-                BlockEntityType.Builder.of(factory::apply, validBlocks.stream().map(Supplier::get).toArray(Block[]::new)).build(null)
+                BlockEntityType.Builder.of(
+                        factory::apply,
+                        validBlocks.stream().map(Supplier::get).toArray(Block[]::new)
+                ).build(null)
         );
 
         for (ResourceLocation alias : aliases) {

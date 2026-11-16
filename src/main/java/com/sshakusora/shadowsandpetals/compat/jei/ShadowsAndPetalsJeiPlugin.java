@@ -7,6 +7,7 @@ import com.sshakusora.shadowsandpetals.item.hammer.HammerItem;
 import com.sshakusora.shadowsandpetals.recipe.WindChimeDyeRecipe;
 import com.sshakusora.shadowsandpetals.registries.BlockRegistry;
 import com.sshakusora.shadowsandpetals.registries.ItemRegistry;
+import com.sshakusora.shadowsandpetals.util.HedgeContents;
 import mezz.jei.api.IModPlugin;
 import mezz.jei.api.JeiPlugin;
 import mezz.jei.api.ingredients.subtypes.IIngredientSubtypeInterpreter;
@@ -29,6 +30,12 @@ public final class ShadowsAndPetalsJeiPlugin implements IModPlugin {
 
     @Override
     public void registerItemSubtypes(ISubtypeRegistration registration) {
+        IIngredientSubtypeInterpreter<ItemStack> hedgeSubtype = (stack, context) -> {
+            HedgeContents.Materials materials = HedgeContents.get(stack);
+            return materials.leavesBlockId() + ":" + materials.trunkBlockId();
+        };
+        registration.registerSubtypeInterpreter(BlockRegistry.HEDGE.get().asItem(), hedgeSubtype);
+        registration.registerSubtypeInterpreter(BlockRegistry.TALL_HEDGE.get().asItem(), hedgeSubtype);
         registration.registerSubtypeInterpreter(
                 BlockRegistry.WIND_CHIME.get().asItem(),
                 (IIngredientSubtypeInterpreter<ItemStack>) (stack, context) ->

@@ -7,6 +7,12 @@ import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.neoforged.neoforge.registries.DeferredHolder;
 
 public class BlockEntityRegistry {
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<HedgeBlockEntity>> HEDGE = SAPRegistries
+            .<HedgeBlockEntity>blockEntity("hedge")
+            .factory(HedgeBlockEntity::new)
+            .validBlocks(BlockRegistry.HEDGE, BlockRegistry.TALL_HEDGE)
+            .register();
+
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<SandExcavationBlockEntity>> SAND_EXCAVATION =
             SAPRegistries.<SandExcavationBlockEntity>blockEntity("sand_excavation")
                     .factory(SandExcavationBlockEntity::new)

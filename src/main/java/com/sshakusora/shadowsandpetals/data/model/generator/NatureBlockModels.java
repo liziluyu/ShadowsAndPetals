@@ -3,19 +3,24 @@ package com.sshakusora.shadowsandpetals.data.model.generator;
 import com.sshakusora.shadowsandpetals.block.RockeryDimensions;
 import com.sshakusora.shadowsandpetals.block.agriculture.OrangeTreeBlock;
 import com.sshakusora.shadowsandpetals.block.decoration.HedgeBlock;
+import com.sshakusora.shadowsandpetals.block.decoration.TallHedgeBlock;
 import com.sshakusora.shadowsandpetals.block.nature.RockeryBlock;
 import com.sshakusora.shadowsandpetals.block.nature.SandExcavationBlock;
 import com.sshakusora.shadowsandpetals.data.model.BlockModelContext;
 import com.sshakusora.shadowsandpetals.data.model.ItemModelContext;
 import com.sshakusora.shadowsandpetals.data.model.SAPBlockModelGenerator;
 import com.sshakusora.shadowsandpetals.data.model.SAPItemModelGenerator;
+import net.minecraft.client.renderer.block.model.BlockModel;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Vec3i;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.level.block.*;
+import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 import net.neoforged.neoforge.client.model.generators.BlockModelBuilder;
 import net.neoforged.neoforge.client.model.generators.ConfiguredModel;
+import net.neoforged.neoforge.client.model.generators.ItemModelBuilder;
 import net.neoforged.neoforge.client.model.generators.ModelFile;
 
 import java.util.Map;
@@ -95,23 +100,40 @@ public final class NatureBlockModels {
         generator.provider().simpleBlock(context.get(), model);
     }
 
-    public static void hedge(BlockModelContext<? extends HedgeBlock> context, SAPBlockModelGenerator generator,
-                             ResourceLocation texture) {
-        for (int mask = 0; mask < 16; mask++) {
-            generator.createHedgeModel("block/" + context.name() + "_" + mask, texture,
-                    (mask & 1) != 0, (mask & 2) != 0, (mask & 4) != 0, (mask & 8) != 0);
-        }
-        generator.provider().getVariantBuilder(context.get()).forAllStates(state -> {
-            int mask = 0;
-            if (state.getValue(HedgeBlock.NORTH)) mask |= 1;
-            if (state.getValue(HedgeBlock.EAST)) mask |= 2;
-            if (state.getValue(HedgeBlock.SOUTH)) mask |= 4;
-            if (state.getValue(HedgeBlock.WEST)) mask |= 8;
-            return ConfiguredModel.builder().modelFile(generator.uncheckedModel(
-                    generator.modLoc("block/" + context.name() + "_" + mask))).build();
-        });
-        StandardBlockModels.parentBlockItem(context.get(), generator,
-                generator.modLoc("block/" + context.name() + "_5"));
+    public static void hedge(BlockModelContext<? extends HedgeBlock> context, SAPBlockModelGenerator generator) {
+        ResourceLocation modelId = generator.modLoc("block/tree_deco/hedge");
+        generator.provider().getVariantBuilder(context.get()).forAllStates(state -> ConfiguredModel.builder()
+                .modelFile(generator.uncheckedModel(modelId)).build());
+    }
+
+    public static void tallHedge(BlockModelContext<? extends TallHedgeBlock> context, SAPBlockModelGenerator generator) {
+        generator.provider().getVariantBuilder(context.get()).forAllStates(state -> ConfiguredModel.builder()
+                .modelFile(generator.uncheckedModel(generator.modLoc("block/tree_deco/tall_hedge_"
+                        + (state.getValue(TallHedgeBlock.HALF) == DoubleBlockHalf.UPPER ? "upper" : "lower"))))
+                .build());
+    }
+
+    public static void hedgeItem(ItemModelContext<? extends BlockItem> context, SAPItemModelGenerator generator) {
+        boolean tall = context.get().getBlock() instanceof TallHedgeBlock;
+        ItemModelBuilder model = (ItemModelBuilder) generator.createModel(context.name(),
+                ResourceLocation.withDefaultNamespace("builtin/entity"),
+                Map.of("particle", ResourceLocation.withDefaultNamespace("block/oak_leaves")));
+        model.guiLight(BlockModel.GuiLight.SIDE);
+        model.transforms()
+                .transform(ItemDisplayContext.THIRD_PERSON_RIGHT_HAND)
+                    .rotation(75, 45, 0).translation(0, 2.5F, 0).scale(0.375F).end()
+                .transform(ItemDisplayContext.THIRD_PERSON_LEFT_HAND)
+                    .rotation(75, 45, 0).translation(0, 2.5F, 0).scale(0.375F).end()
+                .transform(ItemDisplayContext.FIRST_PERSON_RIGHT_HAND)
+                    .rotation(0, 45, 0).scale(0.4F).end()
+                .transform(ItemDisplayContext.FIRST_PERSON_LEFT_HAND)
+                    .rotation(0, -135, 0).scale(0.4F).end()
+                .transform(ItemDisplayContext.GROUND)
+                    .translation(0, 3, 0).scale(0.25F).end()
+                .transform(ItemDisplayContext.GUI)
+                    .rotation(28, -162, 0).translation(0, tall ? -2.25F : 0, 0).scale(tall ? 0.4F : 0.6F).end()
+                .transform(ItemDisplayContext.FIXED)
+                    .scale(0.5F).end();
     }
     public static void orangeTree(BlockModelContext<? extends OrangeTreeBlock> context, SAPBlockModelGenerator generator) {
         generator.provider().getVariantBuilder(context.get()).forAllStates(state -> {

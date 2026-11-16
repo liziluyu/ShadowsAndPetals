@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "waterlogged=false": {
+      "model": "shadowsandpetals:block/tree_deco/hedge"
+    },
+    "waterlogged=true": {
+      "model": "shadowsandpetals:block/tree_deco/hedge"
+    }
+  }
+}

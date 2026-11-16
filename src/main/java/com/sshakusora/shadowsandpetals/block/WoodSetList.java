@@ -1,7 +1,6 @@
 package com.sshakusora.shadowsandpetals.block;
 
 import com.sshakusora.shadowsandpetals.ShadowsAndPetals;
-import com.sshakusora.shadowsandpetals.block.decoration.HedgeBlock;
 import com.sshakusora.shadowsandpetals.block.decoration.VerticalSlabBlock;
 import com.sshakusora.shadowsandpetals.block.decoration.WoodPostBlock;
 import com.sshakusora.shadowsandpetals.block.nature.LeavesVerticalSlabBlock;
@@ -108,8 +107,7 @@ public class WoodSetList extends BlockList<WoodSetList.Type, WoodSetList.WoodSet
             DeferredBlock<CarpetBlock> leavesCarpet,
             DeferredBlock<SlabBlock> leavesSlab,
             DeferredBlock<LeavesVerticalSlabBlock> leavesVerticalSlab,
-            DeferredBlock<StairBlock> leavesStairs,
-            DeferredBlock<HedgeBlock> hedge
+            DeferredBlock<StairBlock> leavesStairs
     ) {}
 
     private static WoodSet registerWoodSet(Type type) {
@@ -153,8 +151,7 @@ public class WoodSetList extends BlockList<WoodSetList.Type, WoodSetList.WoodSet
         DeferredBlock<SlabBlock> leavesSlab = treeLeavesSlab(type.name + "_leaves_slab", leaves, type.treeZhName + "树叶台阶", type.leavesColor);
         DeferredBlock<LeavesVerticalSlabBlock> leavesVerticalSlab = treeLeavesVerticalSlab(type.name + "_leaves_vertical_slab", leavesSlab, leaves, "竖直" + type.treeZhName + "树叶台阶", type.leavesColor);
         DeferredBlock<StairBlock> leavesStairs = treeLeavesStairs(type.name + "_leaves_stairs", leaves, type.treeZhName + "树叶楼梯", type.leavesColor);
-        DeferredBlock<HedgeBlock> hedge = treeHedge(type.name + "_hedge", leaves, type.treeZhName + "树篱", type.leavesColor);
-        WoodSet result = new WoodSet(log, strippedLog, wood, strippedWood, planks, post, strippedPost, woodPost, strippedWoodPost, slab, verticalSlab, stairs, fence, fenceGate, pressurePlate, button, sapling, leaves, leavesCarpet, leavesSlab, leavesVerticalSlab, leavesStairs, hedge);
+        WoodSet result = new WoodSet(log, strippedLog, wood, strippedWood, planks, post, strippedPost, woodPost, strippedWoodPost, slab, verticalSlab, stairs, fence, fenceGate, pressurePlate, button, sapling, leaves, leavesCarpet, leavesSlab, leavesVerticalSlab, leavesStairs);
         modelSet[0] = result;
         return result;
     }
@@ -763,35 +760,6 @@ public class WoodSetList extends BlockList<WoodSetList.Type, WoodSetList.WoodSet
                         .define('L', leaves.get())
                         .pattern("L  ")
                         .pattern("LL ")
-                        .pattern("LLL")
-                        .unlockedBy(provider.hasName(leaves.get()), provider.hasItem(leaves.get()))
-                        .save(provider.output()))
-                .register();
-    }
-
-    public static DeferredBlock<HedgeBlock> treeHedge(String id, DeferredBlock<LeavesBlock> leaves, String zhName, MapColor mapColor) {
-        return SAPRegistries.block(id, HedgeBlock::new)
-                .properties(properties -> BlockBehaviour.Properties.ofFullCopy(Blocks.OAK_LEAVES)
-                        .strength(0.2F)
-                        .sound(SoundType.GRASS)
-                        .mapColor(mapColor)
-                        .noOcclusion()
-                        .isValidSpawn((state, getter, pos, type1) -> false)
-                        .isSuffocating((state, getter, pos) -> false)
-                        .isViewBlocking((state, getter, pos) -> false))
-                .tags(BlockTags.MINEABLE_WITH_HOE)
-                .withItem()
-                .creativeTab(CreativeTabRegistry.CreativeTabKey.NATURE, CreativeTabOrder.NATURE_HEDGES)
-                .lang("zh_cn", zhName)
-                .blockstate(() -> (context, generator) -> NatureBlockModels.hedge(
-                        context,
-                        generator,
-                        ShadowsAndPetals.asResource("block/" + BuiltInRegistries.BLOCK.getKey(leaves.get()).getPath() + "_0")
-                ))
-                .loot((provider, hedge) -> provider.dropSelf(hedge.get()))
-                .recipe((provider, hedge) -> provider.shaped(RecipeCategory.DECORATIONS, hedge.get(), 6)
-                        .define('L', leaves.get())
-                        .pattern("LLL")
                         .pattern("LLL")
                         .unlockedBy(provider.hasName(leaves.get()), provider.hasItem(leaves.get()))
                         .save(provider.output()))

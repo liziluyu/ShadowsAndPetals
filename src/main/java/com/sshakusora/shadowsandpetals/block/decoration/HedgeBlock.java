@@ -1,16 +1,20 @@
 package com.sshakusora.shadowsandpetals.block.decoration;
 
 import com.mojang.serialization.MapCodec;
-import com.sshakusora.shadowsandpetals.util.VoxelShapeUtils;
+import com.sshakusora.shadowsandpetals.blockentity.HedgeBlockEntity;
+import com.sshakusora.shadowsandpetals.util.HedgeContents;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.LevelAccessor;
+import net.minecraft.world.level.LevelReader;
+import net.minecraft.world.level.block.BaseEntityBlock;
 import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.FenceGateBlock;
 import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.SimpleWaterloggedBlock;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
@@ -18,33 +22,29 @@ import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.level.material.Fluids;
-import net.minecraft.world.level.pathfinder.PathComputationType;
+import net.minecraft.world.level.storage.loot.LootParams;
+import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
 import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
+import org.jetbrains.annotations.Nullable;
 
-public class HedgeBlock extends Block implements SimpleWaterloggedBlock {
+import java.util.ArrayList;
+import java.util.List;
+
+/** A foliage hedge whose leaf and trunk textures are stored per item and block. */
+public class HedgeBlock extends BaseEntityBlock implements SimpleWaterloggedBlock {
     public static final MapCodec<HedgeBlock> CODEC = simpleCodec(HedgeBlock::new);
 
-    public static final BooleanProperty NORTH = BlockStateProperties.NORTH;
-    public static final BooleanProperty EAST = BlockStateProperties.EAST;
-    public static final BooleanProperty SOUTH = BlockStateProperties.SOUTH;
-    public static final BooleanProperty WEST = BlockStateProperties.WEST;
     public static final BooleanProperty WATERLOGGED = BlockStateProperties.WATERLOGGED;
 
-    private static final VoxelShape OUTLINE_CORE = Block.box(4.0D, 0.0D, 4.0D, 12.0D, 16.0D, 12.0D);
-    private static final VoxelShape OUTLINE_NORTH_ARM = Block.box(4.0D, 0.0D, 0.0D, 12.0D, 16.0D, 4.0D);
-    private static final VoxelShape COLLISION_CORE = Block.box(4.0D, 0.0D, 4.0D, 12.0D, 24.0D, 12.0D);
-    private static final VoxelShape COLLISION_NORTH_ARM = Block.box(4.0D, 0.0D, 0.0D, 12.0D, 24.0D, 4.0D);
-    private static final VoxelShape[] OUTLINE_SHAPES = VoxelShapeUtils.buildHorizontalConnectionShapes(OUTLINE_CORE, OUTLINE_NORTH_ARM);
-    private static final VoxelShape[] COLLISION_SHAPES = VoxelShapeUtils.buildHorizontalConnectionShapes(COLLISION_CORE, COLLISION_NORTH_ARM);
+    // Match the template's main leaf cube and the small visible stem at its base.
+    private static final VoxelShape SHAPE = Shapes.or(
+            Block.box(6, 0, 6, 10, 3, 10), Block.box(0, 3, 0, 16, 16, 16));
 
     public HedgeBlock(BlockBehaviour.Properties properties) {
         super(properties);
         registerDefaultState(defaultBlockState()
-                .setValue(NORTH, false)
-                .setValue(EAST, false)
-                .setValue(SOUTH, false)
-                .setValue(WEST, false)
                 .setValue(WATERLOGGED, false));
     }
 
@@ -59,33 +59,28 @@ public class HedgeBlock extends Block implements SimpleWaterloggedBlock {
     }
 
     @Override
+    public @Nullable BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
+        return new HedgeBlockEntity(pos, state);
+    }
+
+    @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
-        builder.add(NORTH, EAST, SOUTH, WEST, WATERLOGGED);
+        builder.add(WATERLOGGED);
     }
 
     @Override
     public BlockState getStateForPlacement(BlockPlaceContext context) {
-        return updateConnections(defaultBlockState(), context.getLevel(), context.getClickedPos())
-                .setValue(WATERLOGGED, context.getLevel().getFluidState(context.getClickedPos()).getType() == Fluids.WATER);
+        BlockPos pos = context.getClickedPos();
+        return defaultBlockState().setValue(WATERLOGGED,
+                context.getLevel().getFluidState(pos).getType() == Fluids.WATER);
     }
 
     @Override
-    protected BlockState updateShape(
-            BlockState state,
-            Direction direction,
-            BlockState neighborState,
-            LevelAccessor level,
-            BlockPos pos,
-            BlockPos neighborPos
-    ) {
+    protected BlockState updateShape(BlockState state, Direction direction, BlockState neighborState,
+                                     LevelAccessor level, BlockPos pos, BlockPos neighborPos) {
         if (state.getValue(WATERLOGGED)) {
             level.scheduleTick(pos, Fluids.WATER, Fluids.WATER.getTickDelay(level));
         }
-
-        if (direction.getAxis().isHorizontal()) {
-            return state.setValue(propertyFor(direction), canConnectTo(level, neighborPos, neighborState, direction.getOpposite()));
-        }
-
         return super.updateShape(state, direction, neighborState, level, pos, neighborPos);
     }
 
@@ -100,27 +95,13 @@ public class HedgeBlock extends Block implements SimpleWaterloggedBlock {
     }
 
     @Override
-    protected boolean isPathfindable(BlockState state, PathComputationType pathComputationType) {
-        return pathComputationType == PathComputationType.WATER && state.getFluidState().is(Fluids.WATER);
-    }
-
-    @Override
     public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
-        return OUTLINE_SHAPES[connectionMask(state)];
+        return SHAPE;
     }
 
     @Override
     public VoxelShape getCollisionShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
-        return COLLISION_SHAPES[connectionMask(state)];
-    }
-
-    @Override
-    protected boolean skipRendering(BlockState state, BlockState neighborState, Direction direction) {
-        if (direction.getAxis().isHorizontal() && neighborState.getBlock() instanceof HedgeBlock) {
-            return state.getValue(propertyFor(direction)) && neighborState.getValue(propertyFor(direction.getOpposite()));
-        }
-
-        return super.skipRendering(state, neighborState, direction);
+        return SHAPE;
     }
 
     @Override
@@ -138,52 +119,29 @@ public class HedgeBlock extends Block implements SimpleWaterloggedBlock {
         return 30;
     }
 
-    private BlockState updateConnections(BlockState state, BlockGetter level, BlockPos pos) {
-        for (Direction direction : Direction.Plane.HORIZONTAL) {
-            BlockPos neighborPos = pos.relative(direction);
-            state = state.setValue(
-                    propertyFor(direction),
-                    canConnectTo(level, neighborPos, level.getBlockState(neighborPos), direction.getOpposite())
-            );
+    @Override
+    protected List<ItemStack> getDrops(BlockState state, LootParams.Builder params) {
+        List<ItemStack> drops = super.getDrops(state, params);
+        BlockEntity be = params.getOptionalParameter(LootContextParams.BLOCK_ENTITY);
+        if (be instanceof HedgeBlockEntity hedge && !drops.isEmpty()) {
+            List<ItemStack> taggedDrops = new ArrayList<>(drops.size());
+            for (ItemStack drop : drops) {
+                ItemStack variant = drop.copy();
+                if (Block.byItem(variant.getItem()) == this) {
+                    HedgeContents.apply(variant, hedge.getMaterials());
+                }
+                taggedDrops.add(variant);
+            }
+            return taggedDrops;
         }
-        return state;
+        return drops;
     }
 
-    private boolean connectsTo(BlockState state, boolean faceSolid, Direction direction) {
-        Block block = state.getBlock();
-        boolean sameHedge = block instanceof HedgeBlock;
-        boolean gate = block instanceof FenceGateBlock && FenceGateBlock.connectsToDirection(state, direction);
-        return (!isExceptionForConnection(state) && faceSolid) || sameHedge || gate;
-    }
-
-    private boolean canConnectTo(BlockGetter level, BlockPos neighborPos, BlockState neighborState, Direction direction) {
-        return connectsTo(neighborState, neighborState.isFaceSturdy(level, neighborPos, direction), direction);
-    }
-
-    private static BooleanProperty propertyFor(Direction direction) {
-        return switch (direction) {
-            case NORTH -> NORTH;
-            case EAST -> EAST;
-            case SOUTH -> SOUTH;
-            case WEST -> WEST;
-            default -> throw new IllegalArgumentException("Unsupported direction: " + direction);
-        };
-    }
-
-    private static int connectionMask(BlockState state) {
-        int mask = 0;
-        if (state.getValue(NORTH)) {
-            mask |= 1;
-        }
-        if (state.getValue(EAST)) {
-            mask |= 1 << 1;
-        }
-        if (state.getValue(SOUTH)) {
-            mask |= 1 << 2;
-        }
-        if (state.getValue(WEST)) {
-            mask |= 1 << 3;
-        }
-        return mask;
+    @Override
+    public ItemStack getCloneItemStack(LevelReader level, BlockPos pos, BlockState state) {
+        BlockEntity be = level.getBlockEntity(pos);
+        return be instanceof HedgeBlockEntity hedge
+                ? HedgeContents.create(hedge.getMaterials())
+                : HedgeContents.create(HedgeContents.DEFAULT);
     }
 }

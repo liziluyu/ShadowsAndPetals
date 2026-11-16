@@ -1,7 +1,6 @@
 package com.sshakusora.shadowsandpetals.data.model;
 
 import com.sshakusora.shadowsandpetals.ShadowsAndPetals;
-import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.PackType;
@@ -9,7 +8,6 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.level.block.Block;
 import net.neoforged.neoforge.client.model.generators.BlockModelBuilder;
 import net.neoforged.neoforge.client.model.generators.BlockStateProvider;
-import net.neoforged.neoforge.client.model.generators.ModelBuilder;
 import net.neoforged.neoforge.client.model.generators.ModelFile;
 import net.neoforged.neoforge.client.model.generators.loaders.ObjModelBuilder;
 import net.neoforged.neoforge.common.data.ExistingFileHelper;
@@ -99,59 +97,6 @@ public class SAPBlockModelGenerator {
                 .modelLocation(obj)
                 .flipV(flipV));
         return builder;
-    }
-
-    /** Create the connection-mask model used by the custom hedge block. */
-    public ModelFile createHedgeModel(String path, ResourceLocation texture,
-                                      boolean north, boolean east, boolean south, boolean west) {
-        BlockModelBuilder builder = provider().models().getBuilder(path)
-                .parent(provider().models().getExistingFile(ResourceLocation.withDefaultNamespace("block/block")))
-                .texture("all", texture)
-                .texture("particle", texture)
-                .renderType("cutout_mipped");
-        addCube(builder, 4, 0, 4, 12, 16, 12,
-                true, true, !north, !south, !west, !east, null);
-        if (north) {
-            addCube(builder, 4, 0, 0, 12, 16, 4,
-                    true, true, true, false, true, true, Direction.NORTH);
-        }
-        if (east) {
-            addCube(builder, 12, 0, 4, 16, 16, 12,
-                    true, true, true, true, false, true, Direction.EAST);
-        }
-        if (south) {
-            addCube(builder, 4, 0, 12, 12, 16, 16,
-                    true, true, false, true, true, true, Direction.SOUTH);
-        }
-        if (west) {
-            addCube(builder, 0, 0, 4, 4, 16, 12,
-                    true, true, true, true, true, false, Direction.WEST);
-        }
-        return builder;
-    }
-
-    private static void addCube(BlockModelBuilder builder, float fromX, float fromY, float fromZ,
-                                float toX, float toY, float toZ,
-                                boolean includeDown, boolean includeUp,
-                                boolean includeNorth, boolean includeSouth,
-                                boolean includeWest, boolean includeEast,
-                                @Nullable Direction cullface) {
-        var element = builder.element().from(fromX, fromY, fromZ).to(toX, toY, toZ);
-        if (includeDown) addFace(element, Direction.DOWN, cullface == Direction.DOWN);
-        if (includeUp) addFace(element, Direction.UP, cullface == Direction.UP);
-        if (includeNorth) addFace(element, Direction.NORTH, cullface == Direction.NORTH);
-        if (includeSouth) addFace(element, Direction.SOUTH, cullface == Direction.SOUTH);
-        if (includeWest) addFace(element, Direction.WEST, cullface == Direction.WEST);
-        if (includeEast) addFace(element, Direction.EAST, cullface == Direction.EAST);
-        element.end();
-    }
-
-    private static void addFace(ModelBuilder<?>.ElementBuilder element,
-                                Direction direction, boolean cullface) {
-        var face = element.face(direction).texture("#all");
-        if (cullface) {
-            face.cullface(direction);
-        }
     }
 
     private void ensureVanillaTexture(ResourceLocation texture) {

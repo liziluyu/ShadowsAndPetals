@@ -8,6 +8,7 @@ import com.sshakusora.shadowsandpetals.client.model.BlockModelRegistry;
 import com.sshakusora.shadowsandpetals.client.model.WindChimeItemModel;
 import com.sshakusora.shadowsandpetals.client.model.WoodenBarrelItemModel;
 import com.sshakusora.shadowsandpetals.client.model.bonsai.BonsaiTreeGeometryCache;
+import com.sshakusora.shadowsandpetals.client.model.hedge.HedgeItemModel;
 import com.sshakusora.shadowsandpetals.client.outline.*;
 import com.sshakusora.shadowsandpetals.client.particle.FallingLeafParticle;
 import com.sshakusora.shadowsandpetals.client.renderer.*;
@@ -76,6 +77,7 @@ public final class ClientEvents {
         event.registerItem(new HarrowClientExtensions(), ItemRegistry.HARROW.get());
         event.registerItem(new WindChimeItemModel(), BlockRegistry.WIND_CHIME.get().asItem());
         event.registerItem(new WoodenBarrelItemModel(), BlockRegistry.WOODEN_BARREL.get().asItem());
+        event.registerItem(new HedgeItemModel(), BlockRegistry.HEDGE.get().asItem(), BlockRegistry.TALL_HEDGE.get().asItem());
         event.registerFluidType(new IClientFluidTypeExtensions() {
             @Override
             public ResourceLocation getStillTexture() {

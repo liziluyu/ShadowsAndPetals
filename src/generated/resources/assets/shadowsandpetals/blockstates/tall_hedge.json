@@ -1,0 +1,16 @@
+{
+  "variants": {
+    "half=lower,waterlogged=false": {
+      "model": "shadowsandpetals:block/tree_deco/tall_hedge_lower"
+    },
+    "half=lower,waterlogged=true": {
+      "model": "shadowsandpetals:block/tree_deco/tall_hedge_lower"
+    },
+    "half=upper,waterlogged=false": {
+      "model": "shadowsandpetals:block/tree_deco/tall_hedge_upper"
+    },
+    "half=upper,waterlogged=true": {
+      "model": "shadowsandpetals:block/tree_deco/tall_hedge_upper"
+    }
+  }
+}

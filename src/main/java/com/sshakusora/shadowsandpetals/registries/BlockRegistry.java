@@ -25,11 +25,13 @@ import com.sshakusora.shadowsandpetals.data.lang.BlockTooltipData;
 import com.sshakusora.shadowsandpetals.data.model.generator.*;
 import com.sshakusora.shadowsandpetals.data.recipe.BlockRecipeData;
 import com.sshakusora.shadowsandpetals.item.CopperTeapotBlockItem;
+import com.sshakusora.shadowsandpetals.item.HedgeItem;
 import com.sshakusora.shadowsandpetals.item.RecessedLampBlockItem;
 import com.sshakusora.shadowsandpetals.item.barrel.WoodenBarrelBlockItem;
 import com.sshakusora.shadowsandpetals.item.barrel.WoodenBarrelTooltipModifier;
 import com.sshakusora.shadowsandpetals.item.chime.WindChimeTooltipModifier;
 import com.sshakusora.shadowsandpetals.item.hammer.HammerItem;
+import com.sshakusora.shadowsandpetals.util.HedgeContents;
 import com.sshakusora.shadowsandpetals.worldgen.SAPTreeGrowers;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.util.valueproviders.UniformInt;
@@ -91,12 +93,37 @@ public class BlockRegistry {
             "秋橡树树叶楼梯",
             MapColor.COLOR_ORANGE
     );
-    public static final DeferredBlock<HedgeBlock> AUTUMN_OAK_HEDGE = WoodSetList.treeHedge(
-            "autumn_oak_hedge",
-            AUTUMN_OAK_LEAVES,
-            "秋橡树树篱",
-            MapColor.COLOR_ORANGE
-    );
+    public static final DeferredBlock<HedgeBlock> HEDGE = SAPRegistries
+            .block("hedge", HedgeBlock::new)
+            .properties(properties -> BlockBehaviour.Properties.ofFullCopy(Blocks.OAK_LEAVES)
+                    .strength(0.2F)
+                    .noOcclusion()
+                    .isValidSpawn((state, level, pos, type) -> false)
+                    .isSuffocating((state, level, pos) -> false)
+                    .isViewBlocking((state, level, pos) -> false))
+            .tags(BlockTags.MINEABLE_WITH_HOE)
+            .withCustomItem(HedgeItem::new)
+            .blockstate(() -> NatureBlockModels::hedge)
+            .itemModel(() -> NatureBlockModels::hedgeItem)
+            .loot((provider, hedge) -> provider.dropSelf(hedge.get()))
+            .lang(DatagenLangRegistry.ZH_CN, "树篱")
+            .register();
+
+    public static final DeferredBlock<TallHedgeBlock> TALL_HEDGE = SAPRegistries
+            .block("tall_hedge", TallHedgeBlock::new)
+            .properties(properties -> BlockBehaviour.Properties.ofFullCopy(Blocks.OAK_LEAVES)
+                    .strength(0.2F)
+                    .noOcclusion()
+                    .isValidSpawn((state, level, pos, type) -> false)
+                    .isSuffocating((state, level, pos) -> false)
+                    .isViewBlocking((state, level, pos) -> false))
+            .tags(BlockTags.MINEABLE_WITH_HOE)
+            .withCustomItem(HedgeItem::new)
+            .blockstate(() -> NatureBlockModels::tallHedge)
+            .itemModel(() -> NatureBlockModels::hedgeItem)
+            .loot((provider, hedge) -> provider.dropSelfLowerHalfOnly(hedge.get()))
+            .lang(DatagenLangRegistry.ZH_CN, "高树篱")
+            .register();
 
     public static final DeferredBlock<DropExperienceBlock> BAUXITE_ORE = SAPRegistries
             .block("bauxite_ore", props -> new DropExperienceBlock(UniformInt.of(1, 3), props))
@@ -994,5 +1021,15 @@ public class BlockRegistry {
         );
     }
 
-    public static void init() {}
+    public static void init() {
+        CreativeTabContentsRegistry.addStacks(CreativeTabRegistry.CreativeTabKey.NATURE, HedgeContents::creativeStacks);
+        CreativeTabContentsRegistry.addStacks(CreativeTabRegistry.CreativeTabKey.NATURE,
+                () -> HedgeContents.creativeStacks(TALL_HEDGE.get()));
+        DatagenLangRegistry.key("item.shadowsandpetals.hedge.variant")
+                .en_us("%s Hedge")
+                .zh_cn("%s树篱");
+        DatagenLangRegistry.key("item.shadowsandpetals.tall_hedge.variant")
+                .en_us("%s Tall Hedge")
+                .zh_cn("%s高树篱");
+    }
 }
